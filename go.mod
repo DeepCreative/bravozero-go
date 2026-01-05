@@ -1,4 +1,4 @@
-module github.com/bravozero/bravozero-go
+module github.com/DeepCreative/bravozero-go
 
 go 1.21
 

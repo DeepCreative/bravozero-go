@@ -27,63 +27,135 @@ func main() {
 	// Create client
 	client, err := bravozero.NewClient(
 		bravozero.WithAPIKey("your-api-key"),
-		bravozero.WithAgentID("your-agent-id"),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Evaluate an action
-	result, err := client.Constitution.Evaluate(ctx, bravozero.EvaluationRequest{
-		Action: "read_file",
-		Context: map[string]any{
-			"path": "/project/src/main.go",
-		},
-	})
+	// Check system health
+	health, err := client.Governance.GetHealth(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Printf("System: %s, Omega: %.2f\n", health.State, health.OmegaScore)
+}
+```
 
-	if result.Decision == bravozero.DecisionPermit {
-		fmt.Println("Action allowed!")
-	} else {
-		fmt.Printf("Denied: %s\n", result.Reasoning)
-	}
+## Governance Examples
 
-	// Store a memory
-	memory, err := client.Memory.Record(ctx, bravozero.RecordRequest{
-		Content:    "User prefers Go for systems programming",
-		MemoryType: bravozero.MemoryTypeSemantic,
-		Importance: 0.8,
-		Tags:       []string{"preference", "language"},
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("Stored memory: %s\n", memory.ID)
+### Evaluate Actions
 
-	// Query memories
-	results, err := client.Memory.Query(ctx, bravozero.QueryRequest{
-		Query: "programming preferences",
-		Limit: 5,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
+```go
+// Evaluate an action against the constitution
+result, err := client.Governance.Evaluate(ctx, &bravozero.EvaluateRequest{
+	AgentID: "agent-123",
+	Action:  "Generate a summary of the user document",
+	Context: map[string]any{"userId": "user-456"},
+})
+if err != nil {
+	log.Fatal(err)
+}
 
-	for _, match := range results.Matches {
-		fmt.Printf("[%.2f] %s\n", match.Relevance, match.Memory.Content)
-	}
+switch result.Decision {
+case "allow":
+	fmt.Println("Action allowed!")
+	performAction()
+case "deny":
+	fmt.Printf("Denied: %s\n", result.Reasoning)
+case "escalate":
+	fmt.Println("Requires human review")
+	requestApproval(result)
+}
+```
 
-	// List files
-	files, err := client.Bridge.ListFiles(ctx, "/project/src", false)
-	if err != nil {
-		log.Fatal(err)
-	}
+### Monitor Omega Score
 
-	for _, f := range files {
-		fmt.Printf("%s (%d bytes)\n", f.Name, f.Size)
-	}
+```go
+// Get current system alignment
+omega, err := client.Governance.GetOmega(ctx)
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Omega Score: %.2f\n", omega.Omega)
+fmt.Printf("Trend: %s\n", omega.Trend)
+
+for name, score := range omega.Components {
+	fmt.Printf("  %s: %.2f\n", name, score)
+}
+```
+
+### Submit Governance Proposals
+
+```go
+// Submit a proposal for new rule
+proposal, err := client.Governance.SubmitProposal(ctx, &bravozero.ProposalRequest{
+	Title:       "Add data retention rule",
+	Description: "Require agents to respect data retention preferences",
+	Category:    "rule",
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Proposal %s submitted\n", proposal.ProposalID)
+fmt.Printf("Voting ends: %s\n", proposal.VotingEndsAt)
+```
+
+### Check Active Alerts
+
+```go
+// Get system alerts
+alerts, err := client.Governance.GetAlerts(ctx)
+if err != nil {
+	log.Fatal(err)
+}
+
+for _, alert := range alerts.Alerts {
+	fmt.Printf("[%s] %s\n", alert.Severity, alert.Title)
+}
+```
+
+## Memory Examples
+
+```go
+// Store a memory
+memory, err := client.Memory.Record(ctx, bravozero.RecordRequest{
+	Content:    "User prefers Go for systems programming",
+	MemoryType: bravozero.MemoryTypeSemantic,
+	Importance: 0.8,
+	Tags:       []string{"preference", "language"},
+})
+if err != nil {
+	log.Fatal(err)
+}
+fmt.Printf("Stored memory: %s\n", memory.ID)
+
+// Query memories
+results, err := client.Memory.Query(ctx, bravozero.QueryRequest{
+	Query: "programming preferences",
+	Limit: 5,
+})
+if err != nil {
+	log.Fatal(err)
+}
+
+for _, match := range results.Matches {
+	fmt.Printf("[%.2f] %s\n", match.Relevance, match.Memory.Content)
+}
+```
+
+## VFS Examples
+
+```go
+// List files
+files, err := client.Bridge.ListFiles(ctx, "/project/src", false)
+if err != nil {
+	log.Fatal(err)
+}
+
+for _, f := range files {
+	fmt.Printf("%s (%d bytes)\n", f.Name, f.Size)
 }
 ```
 
@@ -93,7 +165,6 @@ Using environment variables:
 
 ```bash
 export BRAVOZERO_API_KEY="your-api-key"
-export BRAVOZERO_AGENT_ID="your-agent-id"
 ```
 
 ```go
@@ -103,7 +174,7 @@ client, _ := bravozero.NewClient() // Uses env vars
 ## Error Handling
 
 ```go
-result, err := client.Constitution.Evaluate(ctx, req)
+result, err := client.Governance.Evaluate(ctx, req)
 if err != nil {
 	switch e := err.(type) {
 	case *bravozero.RateLimitError:
@@ -112,6 +183,8 @@ if err != nil {
 		fmt.Printf("Denied: %s\n", e.Reasoning)
 	case *bravozero.NotFoundError:
 		fmt.Println("Resource not found")
+	case *bravozero.ServiceUnavailableError:
+		fmt.Println("Governance unavailable, using fallback")
 	default:
 		log.Fatal(err)
 	}
@@ -121,7 +194,8 @@ if err != nil {
 ## Documentation
 
 - [Quickstart Guide](https://docs.bravozero.ai/getting-started)
-- [API Reference](https://docs.bravozero.ai/api)
+- [Governance Integration](https://docs.bravozero.ai/guides/governance-integration)
+- [API Reference](https://docs.bravozero.ai/api/governance-api)
 
 ## License
 

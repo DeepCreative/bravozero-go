@@ -5,7 +5,7 @@ Official Go SDK for the Bravo Zero Breaking the Limits platform.
 ## Installation
 
 ```bash
-go get github.com/bravozero/bravozero-go
+go get github.com/DeepCreative/bravozero-go
 ```
 
 ## Quick Start
@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/bravozero/bravozero-go/bravozero"
+	"github.com/DeepCreative/bravozero-go/bravozero"
 )
 
 func main() {

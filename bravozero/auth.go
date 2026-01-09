@@ -121,3 +121,5 @@ func (a *PersonaAuthenticator) GetPublicKey() string {
 	return base64.StdEncoding.EncodeToString(publicKey)
 }
 
+
+
